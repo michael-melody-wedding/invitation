@@ -141,28 +141,33 @@
     function enterSite() {
       overlay.classList.add('ei-exiting');
 
-      /* React has long finished hydrating by the time the user can click
-         Enter, so it is safe to hide the existing envelope div now. */
       var existing = document.querySelector('[data-testid="envelope-introduction"]');
+
+      /* Click BEFORE hiding — clicking a display:none element does not
+         reliably fire React's synthetic event handler on mobile. */
+      var siteBtn = existing && existing.querySelector('button');
+      if (siteBtn) {
+        siteBtn.click();
+      }
+
       if (existing) {
         existing.style.cssText += 'display:none!important;';
       }
 
-      /* Click the existing button at t=0 so React's cleanup effects fire
-         (removes envelope-active, restores scroll, starts Lenis).
-         The 1700 ms React transition will run invisibly behind our fade. */
-      var siteBtn = existing && existing.querySelector('button');
-      if (siteBtn) {
-        siteBtn.click();
-      } else {
+      /* Always run cleanup unconditionally — belt-and-suspenders in case
+         the React click handler did not fire (common on mobile). */
+      setTimeout(function () {
         document.documentElement.classList.remove('envelope-active');
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+        document.body.style.overscrollBehavior = '';
         try { window.history.scrollRestoration = 'auto'; } catch (e) {}
         if (window.__lenis__) {
           window.__lenis__.resize && window.__lenis__.resize();
           window.__lenis__.start && window.__lenis__.start();
         }
         window.dispatchEvent(new Event('resize'));
-      }
+      }, 100);
 
       setTimeout(function () {
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);

@@ -2,6 +2,12 @@
    Envelope Intro Animation
    ========================================================= */
 
+/* Prevent horizontal scroll on mobile (body already has overflow-x:clip;
+   adding it to html stops the viewport itself from scrolling sideways) */
+html {
+  overflow-x: clip;
+}
+
 /* ---- Story-intro section: center names between the two texts ---- */
 #story-intro {
   min-height: fit-content !important;
