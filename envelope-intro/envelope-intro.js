@@ -139,17 +139,23 @@
 
     /* Enter site */
     function enterSite() {
+      overlay.classList.add('ei-exiting');
+
       var existing = document.querySelector('[data-testid="envelope-introduction"]');
 
-      /* Fade out scene content for immediate visual feedback. */
-      scene.style.transition = 'opacity 400ms ease';
-      scene.style.opacity = '0';
-
-      /* Click the React button while everything is still visible so the
-         synthetic event fires reliably on mobile. */
+      /* Click BEFORE hiding — clicking a display:none element does not
+         reliably fire React's synthetic event handler on mobile. */
       var siteBtn = existing && existing.querySelector('button');
       if (siteBtn) {
         siteBtn.click();
+      }
+
+      /* Hide immediately after clicking so the React component's 1700 ms
+         garden-background zoom animation cannot show through the fading
+         overlay (iOS overflow:hidden on fixed elements does not always
+         clip children reliably). */
+      if (existing) {
+        existing.style.cssText += 'display:none!important;';
       }
 
       /* Always run cleanup unconditionally — belt-and-suspenders in case
@@ -162,24 +168,18 @@
         try { window.history.scrollRestoration = 'auto'; } catch (e) {}
         if (window.__lenis__) {
           window.__lenis__.resize && window.__lenis__.resize();
+          if (window.__lenis__.scrollTo) {
+            window.__lenis__.scrollTo(0, { immediate: true });
+          }
           window.__lenis__.start && window.__lenis__.start();
         }
+        window.scrollTo(0, 0);
         window.dispatchEvent(new Event('resize'));
       }, 100);
 
-      /* Wait for the React envelope-introduction transition (1700 ms) to
-         complete before revealing the site — the garden background scales
-         from tiny to full during that window and would otherwise show
-         through the fading overlay as a brownish full-screen image.
-         Use a fast 400 ms fade so the total feel is still snappy. */
-      setTimeout(function () {
-        overlay.style.transition = 'opacity 400ms ease, transform 400ms ease';
-        overlay.classList.add('ei-exiting');
-      }, 1300);
-
       setTimeout(function () {
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      }, 1300 + 500);
+      }, 850);
     }
 
     enterBtn.addEventListener('click', enterSite);
