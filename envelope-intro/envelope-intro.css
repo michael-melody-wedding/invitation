@@ -1,0 +1,413 @@
+/* =========================================================
+   Envelope Intro Animation
+   ========================================================= */
+
+/* ---- Story-intro section: center names between the two texts ---- */
+#story-intro {
+  min-height: fit-content !important;
+  padding-bottom: 0 !important;
+}
+
+#story-intro > p:last-child {
+  margin-top: 3rem !important;
+  margin-bottom: 3rem !important;
+}
+
+/* Cover the existing tunnel animation while we wait for React to settle.
+   Set via inline <script> in <head>; removed when overlay is ready. */
+html.ei-loading::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9400;
+  background: radial-gradient(ellipse at 50% 60%, #fdf6ec 0%, #f0e4cc 55%, #e4d4b0 100%);
+  pointer-events: none;
+}
+
+#ei-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 60%, #fdf6ec 0%, #f0e4cc 55%, #e4d4b0 100%);
+  transition: opacity 800ms cubic-bezier(0.4, 0, 0.2, 1),
+              transform 800ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#ei-overlay.ei-exiting {
+  opacity: 0;
+  transform: scale(1.06);
+  pointer-events: none;
+}
+
+/* ---- Ambient floating particles ---- */
+.ei-particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ei-particle {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0;
+  animation: ei-particle-drift linear infinite;
+}
+
+@keyframes ei-particle-drift {
+  0%   { transform: translateY(0) rotate(0deg);   opacity: 0; }
+  10%  { opacity: 0.35; }
+  90%  { opacity: 0.25; }
+  100% { transform: translateY(-110vh) rotate(360deg); opacity: 0; }
+}
+
+/* ---- Scene ---- */
+.ei-scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 36px;
+  animation: ei-float 5s ease-in-out infinite;
+}
+
+@keyframes ei-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-10px); }
+}
+
+/* When envelope is opening, pause the float */
+.ei-scene.ei-opening {
+  animation: none;
+}
+
+/* ---- Envelope container ---- */
+.ei-env-container {
+  position: relative;
+  width: 380px;
+  height: 266px;
+  cursor: pointer;
+  filter: drop-shadow(0 24px 64px rgba(100, 70, 30, 0.28))
+          drop-shadow(0 6px 18px rgba(100, 70, 30, 0.16));
+  transition: filter 400ms ease;
+}
+
+.ei-env-container:hover {
+  filter: drop-shadow(0 28px 72px rgba(100, 70, 30, 0.34))
+          drop-shadow(0 8px 22px rgba(100, 70, 30, 0.20));
+}
+
+/* ---- Envelope body ---- */
+.ei-body {
+  position: absolute;
+  inset: 0;
+  background: #f2ead8;
+  border-radius: 3px;
+  overflow: visible;
+}
+
+/* Inside fold decorations — create the classic diamond-crease look */
+.ei-fold-left {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 50%;
+  background: linear-gradient(to right, #e0d4bc, #ede4d2);
+  clip-path: polygon(0 0, 100% 47%, 0 100%);
+}
+
+.ei-fold-right {
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 50%;
+  background: linear-gradient(to left, #d8ccb4, #e8deca);
+  clip-path: polygon(100% 0, 0 47%, 100% 100%);
+}
+
+.ei-fold-bottom {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 55%;
+  background: linear-gradient(to top, #eae2ce, #f0e8d8);
+  clip-path: polygon(0 100%, 50% 0, 100% 100%);
+}
+
+/* envelope surface (front face, slightly lighter) */
+.ei-body-surface {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(170deg, #f8f3ea 0%, #f2ead8 60%, #ede4d0 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  /* sits above the fold decorations */
+  /* but we only show it as the "inner" front when the letter area matters */
+}
+
+/* ---- Letter (rises from inside on open) ---- */
+.ei-letter {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 14px;
+  height: 90%;
+  background: #fffaf2;
+  border-radius: 2px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 22px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(200, 180, 140, 0.3);
+  transform: translateY(30px);
+  transition: transform 750ms cubic-bezier(0.2, 0.8, 0.2, 1) 350ms,
+              opacity 600ms ease 350ms;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.ei-env-container.ei-open .ei-letter {
+  transform: translateY(-148px);
+  opacity: 1;
+  z-index: 5; /* rise in front of the open flap */
+}
+
+.ei-letter-ornament {
+  font-size: 16px;
+  color: #a87040;
+  letter-spacing: 0.25em;
+  margin-bottom: 4px;
+  opacity: 0.6;
+}
+
+.ei-letter-invite {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #8a6a48;
+  margin-bottom: 8px;
+  opacity: 0.85;
+}
+
+.ei-letter-names {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 22px;
+  font-style: italic;
+  color: #2f241b;
+  line-height: 1.2;
+  margin-bottom: 10px;
+}
+
+.ei-letter-rule {
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #c4a878, transparent);
+  margin: 6px auto;
+}
+
+.ei-letter-date {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #7a6040;
+  margin-top: 8px;
+}
+
+/* ---- Flap ---- */
+.ei-flap-perspective {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 152px;
+  perspective: 1100px;
+  perspective-origin: 50% 0%;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.ei-flap {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 152px;
+  transform-style: preserve-3d;
+  transform-origin: top center;
+  transform: rotateX(0deg);
+  transition: transform 950ms cubic-bezier(0.42, 0, 0.18, 1);
+}
+
+.ei-env-container.ei-open .ei-flap {
+  transform: rotateX(-168deg);
+}
+
+.ei-flap-front,
+.ei-flap-back {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 152px;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.ei-flap-front {
+  background: linear-gradient(175deg, #ede4cf 0%, #e4d9c4 60%, #d8cdb6 100%);
+}
+
+.ei-flap-back {
+  background: linear-gradient(5deg, #f5eed8 0%, #f0e9d4 100%);
+  transform: rotateX(180deg);
+  box-shadow: inset 0 -6px 18px rgba(0, 0, 0, 0.06);
+}
+
+/* ---- Wax Seal ---- */
+.ei-seal {
+  position: absolute;
+  /* at the tip of the flap triangle */
+  top: 128px; /* (flap height - seal_radius) ≈ 152 - 28 */
+  left: 50%;
+  transform: translate(-50%, 0);
+  width: 54px;
+  height: 54px;
+  z-index: 4;
+  transition: opacity 350ms ease, transform 350ms ease;
+}
+
+.ei-env-container.ei-open .ei-seal {
+  opacity: 0;
+  transform: translate(-50%, -8px) scale(0.75);
+  pointer-events: none;
+}
+
+.ei-seal-svg {
+  width: 54px;
+  height: 54px;
+  animation: ei-seal-pulse 3s ease-in-out infinite;
+  filter: drop-shadow(0 3px 8px rgba(100, 60, 20, 0.4));
+}
+
+@keyframes ei-seal-pulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 3px 8px rgba(100, 60, 20, 0.4)); }
+  50%       { transform: scale(1.05); filter: drop-shadow(0 4px 12px rgba(100, 60, 20, 0.55)); }
+}
+
+/* ---- Subtitle ---- */
+.ei-subtitle {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 14px;
+  letter-spacing: 0.2em;
+  color: #8a6a48;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 700ms ease 200ms, transform 700ms ease 200ms;
+  text-align: center;
+}
+
+.ei-subtitle.ei-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---- Buttons ---- */
+.ei-open-btn,
+.ei-enter-btn {
+  display: block;
+  padding: 11px 32px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 400ms ease, transform 400ms ease, background-color 180ms ease;
+}
+
+.ei-open-btn {
+  border: 1.5px solid rgba(138, 90, 43, 0.55);
+  background: rgba(138, 90, 43, 0.08);
+  color: #6e4420;
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.ei-open-btn.ei-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ei-open-btn:hover {
+  background: rgba(138, 90, 43, 0.16);
+}
+
+.ei-enter-btn {
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  background: rgba(100, 60, 20, 0.55);
+  color: #fff9f2;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 32px rgba(100, 60, 20, 0.28);
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+  position: absolute; /* stacked on top of open-btn */
+}
+
+.ei-enter-btn.ei-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.ei-enter-btn:hover {
+  background: rgba(100, 60, 20, 0.7);
+}
+
+/* Button wrapper (for stacking) */
+.ei-btn-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  width: 220px;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 480px) {
+  .ei-env-container {
+    width: 300px;
+    height: 210px;
+  }
+
+  .ei-flap-perspective,
+  .ei-flap {
+    height: 120px;
+  }
+
+  .ei-flap-front,
+  .ei-flap-back {
+    height: 120px;
+  }
+
+  .ei-seal {
+    top: 100px;
+    width: 46px;
+    height: 46px;
+  }
+
+  .ei-seal-svg {
+    width: 46px;
+    height: 46px;
+  }
+
+  .ei-env-container.ei-open .ei-letter {
+    transform: translateY(-116px);
+  }
+
+  .ei-letter-names {
+    font-size: 18px;
+  }
+}
