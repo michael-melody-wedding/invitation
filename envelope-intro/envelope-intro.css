@@ -8,6 +8,18 @@ html {
   overflow-x: clip;
 }
 
+/* ---- Mobile hero: force viewport height before React hydrates.
+   SSR renders the hero section at calc(1200px + 100vh) (desktop parallax
+   height). On mobile React corrects this to 100svh, but until hydration
+   completes the tall section can show 1200px of page background below the
+   image. Locking to 100svh pre-hydration prevents that. ---- */
+@media (max-width: 767px) {
+  #hero-section {
+    height: 100svh !important;
+    max-height: 100svh !important;
+  }
+}
+
 /* ---- Story-intro section: center names between the two texts ---- */
 #story-intro {
   min-height: fit-content !important;
