@@ -13,24 +13,58 @@
     { size: 5,  color: '#d8b468', x: 65,  dur: 19, delay: 4   },
     { size: 2,  color: '#e4c878', x: 82,  dur: 23, delay: 11  },
     { size: 4,  color: '#c09050', x: 5,   dur: 17, delay: 6   },
+    { size: 3,  color: '#d9b878', x: 47,  dur: 21, delay: 13  },
+    { size: 2,  color: '#cfa766', x: 94,  dur: 26, delay: 8   },
   ];
 
   /* ── Wax seal SVG ───────────────────────────────── */
+  /* Irregular wax blob: a circle with a few overlapping wobbles */
+  function sealOutline() {
+    var points = [];
+    for (var i = 0; i < 72; i++) {
+      var a = (i / 72) * Math.PI * 2;
+      var r = 25 + 1.5 * Math.sin(5 * a) + 1.0 * Math.sin(9 * a + 1) + 0.6 * Math.sin(14 * a + 2);
+      points.push((28 + r * Math.cos(a)).toFixed(2) + ',' + (28 + r * Math.sin(a)).toFixed(2));
+    }
+    return points.join(' ');
+  }
+
   var SEAL_SVG = [
-    '<svg class="ei-seal-svg" viewBox="0 0 54 54" xmlns="http://www.w3.org/2000/svg">',
+    '<svg viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">',
     '  <defs>',
-    '    <radialGradient id="ei-seal-grad" cx="42%" cy="38%">',
-    '      <stop offset="0%"   stop-color="#b87840"/>',
-    '      <stop offset="100%" stop-color="#7a4a1e"/>',
+    '    <radialGradient id="ei-wax" cx="38%" cy="32%" r="75%">',
+    '      <stop offset="0%"   stop-color="#c48a50"/>',
+    '      <stop offset="55%"  stop-color="#985e2c"/>',
+    '      <stop offset="100%" stop-color="#6b3a14"/>',
+    '    </radialGradient>',
+    '    <radialGradient id="ei-wax-press" cx="62%" cy="70%" r="75%">',
+    '      <stop offset="0%"   stop-color="#a86b36"/>',
+    '      <stop offset="100%" stop-color="#7a4519"/>',
     '    </radialGradient>',
     '  </defs>',
-    /* jagged wax-blob shape */
-    '  <polygon points="27,2 31.5,8 38,5 40,12 47,11 47,18 54,20 51,27 54,34 47,36 47,43 40,42 38,49 31.5,46 27,52 22.5,46 16,49 14,42 7,43 7,36 0,34 3,27 0,20 7,18 7,11 14,12 16,5 22.5,8" fill="url(#ei-seal-grad)"/>',
-    /* inner ring */
-    '  <circle cx="27" cy="27" r="17" fill="none" stroke="rgba(255,240,200,0.35)" stroke-width="1"/>',
-    /* monogram */
-    '  <text x="27" y="33" text-anchor="middle" font-family="Georgia,serif" font-style="italic"',
-    '        font-size="16" fill="rgba(255,248,225,0.92)" letter-spacing="1">M</text>',
+    '  <polygon points="' + sealOutline() + '" fill="url(#ei-wax)"/>',
+    /* pressed disc, lit from the opposite side so it reads as stamped in */
+    '  <circle cx="28" cy="28" r="17.5" fill="url(#ei-wax-press)"/>',
+    '  <circle cx="28" cy="28" r="17.5" fill="none" stroke="rgba(255,226,180,0.35)" stroke-width="0.8"/>',
+    '  <circle cx="28" cy="28" r="15.2" fill="none" stroke="rgba(60,28,6,0.4)" stroke-width="0.6" stroke-dasharray="0.9 1.6"/>',
+    '  <text x="28" y="31.8" text-anchor="middle" font-family="Instrument Serif, Georgia, serif" font-style="italic"',
+    '        font-size="11.5" fill="rgba(255,238,210,0.94)">M&amp;M</text>',
+    '  <ellipse cx="19" cy="14.5" rx="6.5" ry="2.6" fill="rgba(255,240,215,0.22)" transform="rotate(-28 19 14.5)"/>',
+    '</svg>',
+  ].join('');
+
+  /* Fine gold rule with a four-point star, above the names */
+  var ORNAMENT_SVG = [
+    '<svg class="ei-letter-ornament" viewBox="0 0 120 12" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">',
+    '  <defs>',
+    '    <linearGradient id="ei-orn-l" x1="0" x2="1"><stop offset="0" stop-color="#c4a473" stop-opacity="0"/><stop offset="1" stop-color="#c4a473"/></linearGradient>',
+    '    <linearGradient id="ei-orn-r" x1="1" x2="0"><stop offset="0" stop-color="#c4a473" stop-opacity="0"/><stop offset="1" stop-color="#c4a473"/></linearGradient>',
+    '  </defs>',
+    '  <rect x="0" y="5.6" width="49" height="0.8" fill="url(#ei-orn-l)"/>',
+    '  <rect x="71" y="5.6" width="49" height="0.8" fill="url(#ei-orn-r)"/>',
+    '  <circle cx="52.5" cy="6" r="1" fill="#b8915a"/>',
+    '  <circle cx="67.5" cy="6" r="1" fill="#b8915a"/>',
+    '  <path d="M60 0.8 L61.5 4.5 65.2 6 61.5 7.5 60 11.2 58.5 7.5 54.8 6 58.5 4.5Z" fill="#b8915a"/>',
     '</svg>',
   ].join('');
 
@@ -54,34 +88,39 @@
         '<div class="ei-scene" id="ei-scene">' +
           '<p class="ei-subtitle" id="ei-subtitle">you are cordially invited</p>' +
 
-          '<div class="ei-env-container" id="ei-envelope">' +
-            /* body */
-            '<div class="ei-body">' +
-              '<div class="ei-fold-left"></div>' +
-              '<div class="ei-fold-right"></div>' +
-              '<div class="ei-fold-bottom"></div>' +
-            '</div>' +
+          '<div class="ei-env-container" id="ei-envelope" role="button" tabindex="0" aria-label="Open invitation">' +
+            /* inside of the envelope back, with its liner */
+            '<div class="ei-back"></div>' +
 
-            /* letter card — rises when open */
-            '<div class="ei-letter">' +
-              '<p class="ei-letter-ornament">— ✦ —</p>' +
-              '<p class="ei-letter-invite">request the pleasure of your company</p>' +
-              '<div class="ei-letter-rule"></div>' +
-              '<p class="ei-letter-names">Michael &amp; Melody</p>' +
-              '<div class="ei-letter-rule"></div>' +
-              '<p class="ei-letter-date">May 22, 2027</p>' +
-            '</div>' +
-
-            /* flap */
-            '<div class="ei-flap-perspective">' +
+            /* flap — on top while closed, drops behind the letter once open */
+            '<div class="ei-flap-wrap">' +
               '<div class="ei-flap" id="ei-flap">' +
-                '<div class="ei-flap-front"></div>' +
-                '<div class="ei-flap-back"></div>' +
+                '<div class="ei-flap-face ei-flap-front"></div>' +
+                '<div class="ei-flap-face ei-flap-back"></div>' +
+                /* wax seal, cracks in two when opened */
+                '<div class="ei-seal" id="ei-seal">' +
+                  '<div class="ei-seal-half ei-seal-left">' + SEAL_SVG + '</div>' +
+                  '<div class="ei-seal-half ei-seal-right">' + SEAL_SVG + '</div>' +
+                '</div>' +
               '</div>' +
             '</div>' +
 
-            /* wax seal */
-            '<div class="ei-seal" id="ei-seal">' + SEAL_SVG + '</div>' +
+            /* letter card — tucked in the pocket until opened */
+            '<div class="ei-letter">' +
+              ORNAMENT_SVG +
+              '<p class="ei-letter-names">Michael <span class="ei-letter-amp">&amp;</span> Melody</p>' +
+              '<p class="ei-letter-invite">request the pleasure of your company</p>' +
+              '<div class="ei-letter-rule"></div>' +
+              '<p class="ei-letter-date">Saturday, May 22, 2027</p>' +
+              '<p class="ei-letter-place">Lydia Mountain &middot; Virginia</p>' +
+            '</div>' +
+
+            /* front pocket folds, in front of the letter */
+            '<div class="ei-pocket">' +
+              '<div class="ei-fold-wrap ei-fold-wrap-left"><div class="ei-fold ei-fold-left"></div></div>' +
+              '<div class="ei-fold-wrap ei-fold-wrap-right"><div class="ei-fold ei-fold-right"></div></div>' +
+              '<div class="ei-fold-wrap ei-fold-wrap-bottom"><div class="ei-fold ei-fold-bottom"></div></div>' +
+            '</div>' +
           '</div>' +
 
           '<div class="ei-btn-wrap">' +
@@ -115,26 +154,47 @@
       setTimeout(function () { openBtn.classList.add('ei-visible'); }, 600);
     });
 
-    /* Open envelope */
+    /* Open envelope: seal cracks → flap swings up → letter slides out of
+       the pocket → letter comes forward → Enter appears */
+    var opened = false;
+    var reduceMotion = window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     function openEnvelope() {
-      if (envelope.classList.contains('ei-open')) return;
+      if (opened) return;
+      opened = true;
 
       scene.classList.add('ei-opening');
-      openBtn.style.opacity = '0';
+      openBtn.classList.remove('ei-visible');
       openBtn.style.pointerEvents = 'none';
 
-      /* Seal disappears first */
-      envelope.classList.add('ei-open');
+      var at = reduceMotion ? [0, 0, 0, 0] : [260, 860, 1700, 2350];
 
-      /* Show enter button after letter has risen */
+      envelope.classList.add('ei-seal-broken');
+      setTimeout(function () {
+        envelope.classList.add('ei-open');
+      }, at[0]);
+      setTimeout(function () {
+        envelope.classList.add('ei-letter-out');
+        scene.classList.add('ei-stage-out');
+      }, at[1]);
+      setTimeout(function () {
+        envelope.classList.add('ei-letter-front');
+        scene.classList.remove('ei-stage-out');
+        scene.classList.add('ei-stage-front');
+      }, at[2]);
       setTimeout(function () {
         enterBtn.classList.add('ei-visible');
-      }, 1400);
+      }, at[3]);
     }
 
     openBtn.addEventListener('click', openEnvelope);
-    envelope.addEventListener('click', function () {
-      if (!envelope.classList.contains('ei-open')) openEnvelope();
+    envelope.addEventListener('click', openEnvelope);
+    envelope.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openEnvelope();
+      }
     });
 
     /* Enter site */
