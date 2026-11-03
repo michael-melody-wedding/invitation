@@ -11,8 +11,48 @@
   inset: 0;
   background:
     linear-gradient(to bottom, rgba(20, 14, 8, 0.34) 0, rgba(20, 14, 8, 0) 180px),
-    linear-gradient(to top, rgba(20, 14, 8, 0.26) 0, rgba(20, 14, 8, 0) 42%);
+    linear-gradient(to top, rgba(20, 14, 8, 0.68) 0, rgba(20, 14, 8, 0.37) 28%, rgba(20, 14, 8, 0) 58%);
   pointer-events: none;
+}
+
+/* Headline: warm ivory with a soft shadow so it holds up over the bright
+   stone and coats behind it */
+[data-testid="hero-foreground"] svg {
+  filter: drop-shadow(0 2px 3px rgba(20, 14, 8, 0.35)) drop-shadow(0 6px 22px rgba(20, 14, 8, 0.45));
+}
+
+[data-testid="hero-headline"] {
+  fill: #fdf6ec !important;
+}
+
+/* ---- Details: five cards (no registry) — centre the short last row
+   instead of leaving it hanging on the left ---- */
+@media (min-width: 768px) and (max-width: 1279px) {
+  #details .grid.xl\:grid-cols-3 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  #details .grid.xl\:grid-cols-3 > * {
+    grid-column: span 2;
+  }
+
+  #details .grid.xl\:grid-cols-3 > :last-child:nth-child(odd) {
+    grid-column: 2 / span 2;
+  }
+}
+
+@media (min-width: 1280px) {
+  #details .grid.xl\:grid-cols-3 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  #details .grid.xl\:grid-cols-3 > * {
+    grid-column: span 2;
+  }
+
+  #details .grid.xl\:grid-cols-3 > :nth-child(4):nth-last-child(2) {
+    grid-column: 2 / span 2;
+  }
 }
 
 /* ---- Our story: even line breaks in chapter titles and text ---- */

@@ -50,6 +50,13 @@ html.ei-loading::before {
   --ei-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --ei-ease-io: cubic-bezier(0.65, 0, 0.35, 1);
 
+  /* Closed envelope: as large as the screen allows, leaving room for the
+     subtitle above and the button below.
+     While it opens, the scene zooms out (--ei-zoom, set by the script) so
+     the swung-up flap and the rising letter still fit on screen. */
+  --ei-w: min(1400px, 94vw, calc((100svh - 240px) / 0.68));
+  --ei-h: calc(var(--ei-w) * 0.68);
+
   position: fixed;
   inset: 0;
   z-index: 9500;
@@ -104,11 +111,6 @@ html.ei-loading::before {
 
 /* ---- Scene ---- */
 .ei-scene {
-  /* Envelope size: as wide as fits, and short enough that the letter can
-     rise fully out of it without leaving the viewport. */
-  --ei-w: min(400px, 84vw, calc((100svh - 170px) / 1.42));
-  --ei-h: calc(var(--ei-w) * 0.68);
-
   position: relative;
   z-index: 1;
   display: flex;
@@ -117,7 +119,8 @@ html.ei-loading::before {
   gap: 34px;
   animation: ei-float 6s ease-in-out infinite;
   translate: 0 0;
-  transition: translate 1000ms var(--ei-ease-io);
+  scale: 1;
+  transition: translate 1000ms var(--ei-ease-io), scale 1000ms var(--ei-ease-io);
 }
 
 @keyframes ei-float {
@@ -130,10 +133,11 @@ html.ei-loading::before {
   animation-play-state: paused;
 }
 
-/* Keep the envelope + rising letter centred while it is pulled out,
-   then settle once the letter comes forward */
-.ei-scene.ei-stage-out   { translate: 0 calc(var(--ei-h) * 0.42); }
-.ei-scene.ei-stage-front { translate: 0 calc(var(--ei-h) * 0.22); }
+/* Keep the envelope + rising letter centred while it is pulled out */
+.ei-scene.ei-stage-out {
+  translate: 0 var(--ei-shift, 0px);
+  scale: var(--ei-zoom, 1);
+}
 
 /* ---- Envelope container ---- */
 .ei-env-container {
@@ -329,7 +333,8 @@ html.ei-loading::before {
   border-radius: 3px;
   background: var(--ei-noise), linear-gradient(180deg, #fffcf6 0%, #fbf4e6 100%);
   box-shadow: 0 1px 2px rgba(80, 55, 25, 0.12), 0 8px 24px rgba(80, 55, 25, 0.1);
-  transform: translateY(0) scale(1);
+  /* same three functions in every state so each step interpolates cleanly */
+  transform: translate(0px, 0px) translateY(0%) scale(1);
   transition: transform 900ms var(--ei-ease), box-shadow 700ms ease;
   pointer-events: none;
 }
@@ -346,18 +351,25 @@ html.ei-loading::before {
 }
 
 .ei-env-container.ei-letter-out .ei-letter {
-  transform: translateY(-108%);
+  transform: translate(0px, 0px) translateY(-108%) scale(1);
 }
 
+/* Comes forward and grows to nearly fill the screen; the script works out
+   the exact move and scale for the current window (--ei-letter-front). */
 .ei-env-container.ei-letter-front .ei-letter {
   z-index: 7;
-  transform: translateY(-50%) scale(1.1);
-  box-shadow: 0 2px 4px rgba(80, 55, 25, 0.12), 0 22px 44px rgba(80, 55, 25, 0.2);
-  transition: transform 850ms var(--ei-ease-io), box-shadow 850ms ease;
+  transform: var(--ei-letter-front, translate(0px, 0px) translateY(-108%) scale(1));
+  box-shadow: 0 1px 3px rgba(80, 55, 25, 0.1), 0 12px 30px rgba(80, 55, 25, 0.16);
+  transition: transform 950ms var(--ei-ease-io), box-shadow 950ms ease;
 }
 
-#ei-overlay.ei-exiting .ei-letter {
-  transform: translateY(-50%) scale(1.16);
+/* ...while the envelope drops away behind it */
+.ei-env-container.ei-letter-front .ei-back,
+.ei-env-container.ei-letter-front .ei-flap-wrap,
+.ei-env-container.ei-letter-front .ei-pocket {
+  opacity: 0;
+  translate: 0 14%;
+  transition: opacity 700ms ease 100ms, translate 950ms var(--ei-ease-io);
 }
 
 .ei-letter-ornament {
@@ -458,7 +470,7 @@ html.ei-loading::before {
   margin: 0;
   font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
   font-style: italic;
-  font-size: clamp(16px, 2.2vw, 20px);
+  font-size: clamp(16px, calc(var(--ei-w) * 0.026), 30px);
   letter-spacing: 0.06em;
   color: #8a6a48;
   opacity: 0;
@@ -483,9 +495,10 @@ html.ei-loading::before {
 .ei-open-btn,
 .ei-enter-btn {
   display: block;
-  padding: 12px 34px;
+  padding: 1em 2.8em;
   border-radius: 100px;
-  font-size: 12px;
+  font-size: clamp(12px, calc(var(--ei-w) * 0.0145), 16px);
+  white-space: nowrap;
   font-family: inherit;
   font-weight: 600;
   letter-spacing: 0.22em;
@@ -512,20 +525,24 @@ html.ei-loading::before {
   background: rgba(138, 90, 43, 0.12);
 }
 
+/* Sits just under the enlarged letter (--ei-enter-top, set by the script) */
 .ei-enter-btn {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: var(--ei-enter-top, 80%);
   border: 1px solid rgba(255, 255, 255, 0.4);
   background: #8a5a2b;
   color: #fff9f1;
   box-shadow: 0 10px 30px rgba(100, 60, 20, 0.28);
   opacity: 0;
-  transform: translateY(12px);
+  transform: translate(-50%, 12px);
   pointer-events: none;
-  position: absolute; /* stacked on top of open-btn */
 }
 
 .ei-enter-btn.ei-visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: translate(-50%, 0);
   pointer-events: auto;
 }
 
@@ -542,12 +559,10 @@ html.ei-loading::before {
 
 /* Button wrapper (for stacking) */
 .ei-btn-wrap {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 44px;
-  width: 220px;
+  min-height: 44px;
 }
 
 /* ---- Reduced motion: same states, no travel ---- */

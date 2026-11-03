@@ -125,9 +125,10 @@
 
           '<div class="ei-btn-wrap">' +
             '<button class="ei-open-btn" id="ei-open-btn">Open invitation</button>' +
-            '<button class="ei-enter-btn" id="ei-enter-btn">Enter</button>' +
           '</div>' +
         '</div>' +
+        /* outside the scene so it can sit under the enlarged letter */
+        '<button class="ei-enter-btn" id="ei-enter-btn">Enter</button>' +
       '</div>'
     );
   }
@@ -160,6 +161,46 @@
     var reduceMotion = window.matchMedia &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+    /* Work out, for the current window, how far the scene zooms out while
+       the letter is pulled out, and where/how big the letter ends up.
+       Uses layout boxes (offset*), which ignore the transforms applied. */
+    function layout() {
+      var vw = overlay.clientWidth, vh = overlay.clientHeight;
+      var W = envelope.offsetWidth, H = envelope.offsetHeight;
+      var cx = scene.offsetLeft + scene.offsetWidth / 2;
+      var cy = scene.offsetTop + scene.offsetHeight / 2;
+      var envTop = scene.offsetTop + envelope.offsetTop;
+      var envCx = scene.offsetLeft + envelope.offsetLeft + W / 2;
+
+      /* Pulled out, the letter's top sits 0.922 H above the envelope:
+         fit that whole stack on screen, centred */
+      var zoom = Math.min(1, (vh - 48) / (1.922 * H));
+      var stackMid = envTop + 0.039 * H;
+      var shift = vh / 2 - (cy + zoom * (stackMid - cy));
+      scene.style.setProperty('--ei-zoom', zoom.toFixed(4));
+      scene.style.setProperty('--ei-shift', shift.toFixed(1) + 'px');
+
+      /* Final letter: as large as fits, with room for Enter below it */
+      var ratio = W / H;
+      var cardW = Math.min(vw * 0.92, (vh - 150) * ratio, W);
+      var cardH = cardW / ratio;
+      var gap = 26, btnH = enterBtn.offsetHeight || 46;
+      var top = (vh - (cardH + gap + btnH)) / 2;
+      var outX = cx + zoom * (envCx - cx);
+      var outY = cy + zoom * (envTop + 0.5 * H - 0.972 * H - cy) + shift;
+      var grow = cardW / (0.9 * W * zoom);
+      var dx = (vw / 2 - outX) / zoom;
+      var dy = (top + cardH / 2 - outY) / zoom;
+      envelope.style.setProperty('--ei-letter-front',
+        'translate(' + dx.toFixed(1) + 'px, ' + dy.toFixed(1) + 'px) ' +
+        'translateY(-108%) scale(' + grow.toFixed(4) + ')');
+      overlay.style.setProperty('--ei-enter-top', (top + cardH + gap).toFixed(1) + 'px');
+    }
+
+    window.addEventListener('resize', function () {
+      if (opened) layout();
+    });
+
     function openEnvelope() {
       if (opened) return;
       opened = true;
@@ -168,20 +209,21 @@
       openBtn.classList.remove('ei-visible');
       openBtn.style.pointerEvents = 'none';
 
-      var at = reduceMotion ? [0, 0, 0, 0] : [260, 860, 1700, 2350];
+      var at = reduceMotion ? [0, 0, 0, 0] : [260, 860, 1700, 2450];
+      layout();
 
       envelope.classList.add('ei-seal-broken');
       setTimeout(function () {
         envelope.classList.add('ei-open');
+        /* start making room above while the flap swings up, so neither
+           the flap nor the rising letter outruns the scene's shift */
+        scene.classList.add('ei-stage-out');
       }, at[0]);
       setTimeout(function () {
         envelope.classList.add('ei-letter-out');
-        scene.classList.add('ei-stage-out');
       }, at[1]);
       setTimeout(function () {
         envelope.classList.add('ei-letter-front');
-        scene.classList.remove('ei-stage-out');
-        scene.classList.add('ei-stage-front');
       }, at[2]);
       setTimeout(function () {
         enterBtn.classList.add('ei-visible');
