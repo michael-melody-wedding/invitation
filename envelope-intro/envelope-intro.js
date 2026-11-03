@@ -242,6 +242,9 @@
     /* Enter site */
     function enterSite() {
       overlay.classList.add('ei-exiting');
+      /* Read by the site's bundle: if React loads after this, its own
+         intro must not lock scrolling or jump back to the top. */
+      window.__eiEntered = true;
       dismissReactIntro();
 
       /* Always run cleanup unconditionally — belt-and-suspenders in case
@@ -259,6 +262,27 @@
        until React is ready (it may also re-render the intro in between). */
     function dismissReactIntro() {
       var tries = 0;
+
+      /* If React only becomes ready after the guest got in, they may have
+         scrolled already: keep them where they are rather than jumping back
+         to the top. Its re-render resets scrollY to 0 in one jump; a guest's
+         own scrolling gets there in steps, so a jump to the top from more
+         than a screen down is ignored, unless it follows a key press (the
+         Home key also jumps straight there). */
+      var guestY = 0, lastKey = 0;
+      function noteKey() { lastKey = Date.now(); }
+      function trackScroll() {
+        var y = window.scrollY;
+        if (y === 0 && guestY > window.innerHeight && Date.now() - lastKey > 1000) return;
+        guestY = y;
+      }
+      window.addEventListener('keydown', noteKey, true);
+      window.addEventListener('scroll', trackScroll, { passive: true });
+      function stopTracking() {
+        window.removeEventListener('keydown', noteKey, true);
+        window.removeEventListener('scroll', trackScroll);
+      }
+
       (function tick() {
         var intro = document.querySelector('[data-testid="envelope-introduction"]');
         var btn = intro && intro.querySelector('button');
@@ -281,14 +305,22 @@
         if (intro) intro.style.cssText += 'display:none!important;';
 
         if (ready) {
-          setTimeout(releaseSite, 100);
+          stopTracking();
+          var keepY = tries > 0 ? guestY : 0;
+          setTimeout(function () {
+            releaseSite(keepY);
+            holdScroll(keepY);
+          }, 100);
         } else if (++tries < 300) {
           setTimeout(tick, 200);
+        } else {
+          stopTracking();
         }
       })();
     }
 
-    function releaseSite() {
+    function releaseSite(y) {
+      y = y || 0;
       document.documentElement.classList.remove('envelope-active');
       document.documentElement.style.overflow = '';
       document.body.style.overflow = '';
@@ -297,12 +329,40 @@
       if (window.__lenis__) {
         window.__lenis__.resize && window.__lenis__.resize();
         if (window.__lenis__.scrollTo) {
-          window.__lenis__.scrollTo(0, { immediate: true });
+          window.__lenis__.scrollTo(y, { immediate: true });
         }
         window.__lenis__.start && window.__lenis__.start();
       }
-      window.scrollTo(0, 0);
+      window.scrollTo(0, y);
       window.dispatchEvent(new Event('resize'));
+    }
+
+    /* React's re-render can still be filling the page in when we restore
+       the guest's position, so the browser clamps it to the top. Keep
+       putting them back for a few seconds, until they scroll themselves. */
+    function holdScroll(y) {
+      if (!y) return;
+      var until = Date.now() + 4000, guestMoved = false;
+      var inputs = ['touchstart', 'wheel', 'keydown'];
+      function moved() { guestMoved = true; }
+      inputs.forEach(function (t) {
+        window.addEventListener(t, moved, { passive: true, capture: true });
+      });
+      (function again() {
+        if (guestMoved || Date.now() > until) {
+          inputs.forEach(function (t) {
+            window.removeEventListener(t, moved, { capture: true });
+          });
+          return;
+        }
+        if (Math.abs(window.scrollY - y) > 2) {
+          if (window.__lenis__ && window.__lenis__.scrollTo) {
+            window.__lenis__.scrollTo(y, { immediate: true });
+          }
+          window.scrollTo(0, y);
+        }
+        setTimeout(again, 100);
+      })();
     }
 
     enterBtn.addEventListener('click', enterSite);

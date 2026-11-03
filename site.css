@@ -212,3 +212,10 @@ div.backdrop-blur-md > p.truncate.font-bold.text-white {
     rgba(17, 12, 9, 0.16) 50%,
     rgba(17, 12, 9, 0.22) 100%);
 }
+
+/* Story photo viewer: while it is open the template lifts #story to
+   z-index 100 too, and #story comes later in the page, so the other
+   polaroids were drawn over the enlarged photo and its close button. */
+body > div.fixed:has(button[aria-label="Close photo viewer"]) {
+  z-index: 110;
+}
