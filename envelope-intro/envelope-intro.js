@@ -242,69 +242,104 @@
     /* Enter site */
     function enterSite() {
       overlay.classList.add('ei-exiting');
-
-      var existing = document.querySelector('[data-testid="envelope-introduction"]');
-
-      /* Click BEFORE hiding — clicking a display:none element does not
-         reliably fire React's synthetic event handler on mobile. */
-      var siteBtn = existing && existing.querySelector('button');
-      if (siteBtn) {
-        siteBtn.click();
-      }
-
-      /* Hide immediately after clicking so the React component's 1700 ms
-         garden-background zoom animation cannot show through the fading
-         overlay (iOS overflow:hidden on fixed elements does not always
-         clip children reliably). */
-      if (existing) {
-        existing.style.cssText += 'display:none!important;';
-      }
+      dismissReactIntro();
 
       /* Always run cleanup unconditionally — belt-and-suspenders in case
          the React click handler did not fire (common on mobile). */
-      setTimeout(function () {
-        document.documentElement.classList.remove('envelope-active');
-        document.documentElement.style.overflow = '';
-        document.body.style.overflow = '';
-        document.body.style.overscrollBehavior = '';
-        try { window.history.scrollRestoration = 'auto'; } catch (e) {}
-        if (window.__lenis__) {
-          window.__lenis__.resize && window.__lenis__.resize();
-          if (window.__lenis__.scrollTo) {
-            window.__lenis__.scrollTo(0, { immediate: true });
-          }
-          window.__lenis__.start && window.__lenis__.start();
-        }
-        window.scrollTo(0, 0);
-        window.dispatchEvent(new Event('resize'));
-      }, 100);
+      setTimeout(releaseSite, 100);
 
       setTimeout(function () {
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       }, 850);
     }
 
+    /* Tell the site's own (React) intro the guest has entered. On a slow
+       phone the guest can get here before React has hydrated, when its
+       button has no click handler yet, so keep the intro hidden and retry
+       until React is ready (it may also re-render the intro in between). */
+    function dismissReactIntro() {
+      var tries = 0;
+      (function tick() {
+        var intro = document.querySelector('[data-testid="envelope-introduction"]');
+        var btn = intro && intro.querySelector('button');
+        var ready = btn && Object.keys(btn).some(function (k) {
+          return k.indexOf('__reactProps') === 0;
+        });
+
+        if (ready) {
+          /* Click while displayed — clicking a display:none element does
+             not reliably fire React's synthetic event handler on mobile.
+             Unhide, click and hide in one task, so nothing is painted. */
+          intro.style.removeProperty('display');
+          btn.click();
+        }
+
+        /* Hide straight away so the React component's 1700 ms
+           garden-background zoom animation cannot show through the fading
+           overlay (iOS overflow:hidden on fixed elements does not always
+           clip children reliably). */
+        if (intro) intro.style.cssText += 'display:none!important;';
+
+        if (ready) {
+          setTimeout(releaseSite, 100);
+        } else if (++tries < 300) {
+          setTimeout(tick, 200);
+        }
+      })();
+    }
+
+    function releaseSite() {
+      document.documentElement.classList.remove('envelope-active');
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+      document.body.style.overscrollBehavior = '';
+      try { window.history.scrollRestoration = 'auto'; } catch (e) {}
+      if (window.__lenis__) {
+        window.__lenis__.resize && window.__lenis__.resize();
+        if (window.__lenis__.scrollTo) {
+          window.__lenis__.scrollTo(0, { immediate: true });
+        }
+        window.__lenis__.start && window.__lenis__.start();
+      }
+      window.scrollTo(0, 0);
+      window.dispatchEvent(new Event('resize'));
+    }
+
     enterBtn.addEventListener('click', enterSite);
+    keepAttached(overlay);
   }
 
-  /* ── Inject after React's re-render is done ─────────────────────────
-     The static export triggers React error #418 (text mismatch) which
-     causes a full client re-render that clears <html> children at ~334 ms
-     after DOMContentLoaded; the last mutation lands at ~546 ms.
-     We wait for window.load then pad 650 ms to clear that window.
-     Meanwhile html.ei-loading::before (CSS pseudo-element) covers the
-     existing tunnel so the user sees a blank cream screen instead. */
+  /* The static export triggers React error #418 (text mismatch), which
+     causes a full client re-render that can clear <html> children. On a
+     slow phone that happens whenever the JS arrives, so instead of waiting
+     for it, put the overlay straight back (same node, so its listeners
+     and animation state survive) until the guest has entered the site. */
+  function keepAttached(overlay) {
+    var root = document.documentElement;
+    var watcher = new MutationObserver(function () {
+      if (overlay.classList.contains('ei-exiting')) {
+        watcher.disconnect();
+      } else if (!overlay.isConnected) {
+        root.appendChild(overlay);
+      }
+    });
+    watcher.observe(root, { childList: true });
+  }
+
+  /* ── Inject as soon as the DOM is ready ─────────────────────────────
+     Waiting for window.load meant waiting for every image on the page,
+     which on a phone connection left the envelope untappable for up to a
+     minute. Until we inject, html.ei-loading::before (CSS pseudo-element)
+     covers the existing tunnel so the user sees a blank cream screen. */
   function launch() {
-    setTimeout(function () {
-      window.__eiStopLoading && window.__eiStopLoading();
-      document.documentElement.classList.remove('ei-loading');
-      init();
-    }, 650);
+    window.__eiStopLoading && window.__eiStopLoading();
+    document.documentElement.classList.remove('ei-loading');
+    init();
   }
 
-  if (document.readyState === 'complete') {
-    launch();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', launch);
   } else {
-    window.addEventListener('load', launch);
+    launch();
   }
 })();
