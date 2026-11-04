@@ -238,7 +238,18 @@
     state.details = prev && prev.party
       ? { days: prev.party.days.slice(), lodging: prev.party.lodging, room: prev.party.room }
       : { days: [], lodging: '', room: '' };
-    go('guests');
+    /* A party of one has nobody to choose between: go straight to attendance */
+    go(soloParty() ? 'attendance' : 'guests');
+  }
+
+  function soloParty() {
+    return state.party.guests.length === 1;
+  }
+
+  function previousNote() {
+    if (!state.previous) return null;
+    var when = formatDate(state.previous.submittedAt);
+    return h('p', { class: 'rsvp-note', text: 'We already have your RSVP' + (when ? ' from ' + when : '') + '. Your answers are filled in, so you can change anything that’s different.' });
   }
 
   function renderGuests() {
@@ -249,19 +260,13 @@
     }
     updateCount();
 
-    var note = null;
-    if (state.previous) {
-      var when = formatDate(state.previous.submittedAt);
-      note = h('p', { class: 'rsvp-note', text: 'We already have your RSVP' + (when ? ' from ' + when : '') + '. Your answers are filled in, so you can change anything that’s different.' });
-    }
-
     root.className = 'rsvp';
     root.replaceChildren(
       h('div', { class: 'rsvp-step', tabindex: '-1' },
         h('p', { class: 'rsvp-kicker', text: 'You’re responding for' }),
         h('h1', { class: 'rsvp-title', text: state.party.name }),
         h('div', { class: 'rsvp-row-head' }, h('span', { text: 'Select guests' }), count),
-        note,
+        previousNote(),
         h('div', { class: 'rsvp-choices', role: 'group', 'aria-label': 'Guests you are responding for' },
           guests.map(function (g) {
             return choice('checkbox', 'guest', g.id, !!state.selected[g.id], g.name, function (e) {
@@ -288,6 +293,7 @@
         progress(1, 'Attendance'),
         h('h1', { class: 'rsvp-title', text: 'Events' }),
         h('p', { class: 'rsvp-lede', text: 'Will you be joining us?' }),
+        soloParty() ? h('div', { style: 'margin-top:32px' }, previousNote()) : null,
         chosenGuests().map(function (g) {
           var a = state.answers[g.id];
           function pill(value, label) {
@@ -302,7 +308,7 @@
             h('fieldset', { class: 'rsvp-pills' }, h('legend', { text: g.name + ': ' + event.name }), pill('yes', 'Yes'), pill('no', 'No')));
         }),
         message(),
-        nav(function () { go('guests'); }, goButton('Next', {
+        nav(function () { go(soloParty() ? 'find' : 'guests'); }, goButton('Next', {
           onclick: function () {
             var missing = chosenGuests().filter(function (g) { return !state.answers[g.id].attending; });
             if (missing.length) {

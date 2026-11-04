@@ -64,8 +64,8 @@ async function run(engine, device, tag) {
 
   // A name is all it takes: there is never an invite code field
   await find(page, 'Stella', 'Flynn')
-  await page.getByText('You’re responding for').waitFor()
-  ok(/Stella/.test(await text(page)), T('name alone finds the party'))
+  await page.getByText('Will you be joining us?').waitFor()
+  ok(/Stella/.test(await text(page)) && !/Select guests/i.test(await text(page)), T('name alone finds the party; a party of one skips choosing guests'))
   ok(!(await page.getByLabel(/invite code/i).count()) && !/invite code/i.test(await page.content()), T('no invite code field or wording anywhere'))
   await tap(page, page.getByRole('button', { name: /Back/ }))
   ok(await page.getByLabel('First Name').inputValue() === 'Stella', T('Back keeps the typed name'))
@@ -164,7 +164,7 @@ async function run(engine, device, tag) {
   // Everyone declines: no details step
   await tap(page, page.getByRole('button', { name: 'Return to search' }))
   await find(page, 'Sam', "O'Brien")
-  await tap(page, page.getByRole('button', { name: /Start RSVP/ }))
+  await page.getByText('Will you be joining us?').waitFor()
   await tap(page, page.locator('.rsvp-guest').first().getByText('No', { exact: true }))
   await tap(page, page.getByRole('button', { name: /Next/ }))
   await page.getByText('Almost there').waitFor()
