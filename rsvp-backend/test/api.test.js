@@ -198,14 +198,116 @@ test('bad requests and broken sheets fail safely', () => {
   assert.deepEqual(search(broken, 'John', 'Okello'), { ok: false, error: 'server' })
 })
 
-test('setup creates the tabs with headers and example rows', () => {
+// The RSVPs sheet as it was after running the first version of setup
+const FIRST_VERSION = () => ({
+  Guests: [
+    ['Party', 'First Name', 'Last Name', 'Invite Code'],
+    ['Michael & Melody', 'Michael', '', ''],
+    ['Michael & Melody', 'Melody', 'Example', ''],
+  ],
+  Responses: [['Submitted At', 'Party', 'Guest', 'Attending', 'Dietary Restrictions', 'Song Requests', 'Marriage Advice', 'Days Staying', 'Lodging', 'Room or Cabin Number', 'Submission ID']],
+  Settings: [
+    ['Setting', 'Value', 'Notes'],
+    ['Notify email', '', 'Optional. Gets an email for every RSVP. Separate several addresses with commas.'],
+    ['RSVP deadline', '', 'Optional date. RSVPs are accepted until the end of this day; leave blank for no deadline.'],
+  ],
+})
+const snapshot = e => JSON.stringify(Object.fromEntries(Object.entries(e.book).map(([k, v]) => [k, v.rows])))
+function setupTwice(e) {
+  const first = e.context.setup()
+  const after = snapshot(e)
+  const second = e.context.setup()
+  assert.deepEqual(Array.from(second), [], 'running setup again changes nothing')
+  assert.equal(snapshot(e), after, 'the sheet is identical after the second run')
+  assert.match(e.logs.at(-1), /already up to date/)
+  return Array.from(first)
+}
+
+test('setup on a blank spreadsheet builds everything, with Michael & Melody O’Brien', () => {
   const e = makeEnv({ sheets: {} })
-  e.context.setup()
-  assert.deepEqual(e.book.Guests.rows[0], ['Party', 'First Name', 'Last Name'])
-  assert.equal(e.book.Guests.rows.length, 3)
+  const changes = setupTwice(e)
+  assert.deepEqual(e.book.Guests.rows, [
+    ['Party', 'First Name', 'Last Name'],
+    ['Michael & Melody', 'Michael', "O'Brien"],
+    ['Michael & Melody', 'Melody', "O'Brien"],
+  ])
+  assert.equal(e.book.Responses.rows.length, 1)
   assert.equal(e.book.Responses.rows[0][0], 'Submitted At')
-  assert.equal(e.book.Settings.rows[1][0], 'Notify email')
-  assert.equal(search(e, 'Melody', 'Example').party.name, 'Michael & Melody')
-  e.context.setup()
-  assert.equal(e.book.Guests.rows.length, 3, 'running setup again changes nothing')
+  assert.deepEqual(e.book.Settings.rows.map(r => r[0]), ['Setting', 'Notify email', 'RSVP deadline'])
+  assert.ok(changes.includes('Created the Guests tab') && changes.includes('Added Melody O\'Brien to Guests'))
+  const r = search(e, 'Melody', 'OBrien')
+  assert.equal(r.ok, true)
+  assert.equal(r.party.name, 'Michael & Melody')
+})
+
+test('setup fixes the sheet made by the first version: no invite codes, O’Brien last names', () => {
+  const e = makeEnv({ sheets: FIRST_VERSION() })
+  const settingsBefore = JSON.stringify(e.book.Settings.rows)
+  const changes = setupTwice(e)
+  assert.deepEqual(changes, [
+    'Removed the Invite Code column from Guests',
+    'Set Michael’s last name to O\'Brien',
+    'Set Melody’s last name to O\'Brien',
+  ])
+  assert.deepEqual(e.book.Guests.rows, [
+    ['Party', 'First Name', 'Last Name'],
+    ['Michael & Melody', 'Michael', "O'Brien"],
+    ['Michael & Melody', 'Melody', "O'Brien"],
+  ])
+  assert.equal(e.book.Responses.rows.length, 1, 'Responses untouched')
+  assert.equal(JSON.stringify(e.book.Settings.rows), settingsBefore, 'Settings untouched')
+  assert.equal(search(e, 'Michael', "O'Brien").ok, true)
+})
+
+test('setup keeps real guests, extra columns, replies and settings exactly as they are', () => {
+  const e = makeEnv({ sheets: {
+    Guests: [
+      ['Notes', 'Party', 'Invite Code', 'First Name', 'Last Name', 'Table'],
+      ['college friend', 'Okello', 'OK-1', 'John', 'Okello', 4],
+      ['', 'Okello', '', 'Guest', 'Okello', 4],
+      ['bride', 'Michael & Melody', 'MM', 'Melody', "O'Brien", 1],
+    ],
+    Responses: [FIRST_VERSION().Responses[0], [new Date('2026-12-01'), 'Okello', 'John Okello', 'Yes', 'Vegan', '', '', 'Friday', 'Cabin', '12', 'abc']],
+    Settings: [['Setting', 'Value', 'Notes'], ['Notify email', 'us@example.com', 'x'], ['RSVP deadline', new Date('2027-01-15'), 'y']],
+  } })
+  const responsesBefore = JSON.stringify(e.book.Responses.rows)
+  const settingsBefore = JSON.stringify(e.book.Settings.rows)
+  const changes = setupTwice(e)
+  assert.deepEqual(changes, ['Removed the Invite Code column from Guests', 'Added Michael O\'Brien to Guests'])
+  assert.deepEqual(e.book.Guests.rows, [
+    ['Notes', 'Party', 'First Name', 'Last Name', 'Table'],
+    ['college friend', 'Okello', 'John', 'Okello', 4],
+    ['', 'Okello', 'Guest', 'Okello', 4],
+    ['bride', 'Michael & Melody', 'Melody', "O'Brien", 1],
+    ['', 'Michael & Melody', 'Michael', "O'Brien", ''],
+  ])
+  assert.equal(JSON.stringify(e.book.Responses.rows), responsesBefore, 'replies untouched')
+  assert.equal(JSON.stringify(e.book.Settings.rows), settingsBefore, 'filled-in settings untouched')
+  assert.equal(search(e, 'John', 'Okello').party.name, 'John & Guest')
+})
+
+test('setup completes half-made tabs', () => {
+  const e = makeEnv({ sheets: {
+    Guests: [],
+    Settings: [['Setting', 'Value', 'Notes'], ['Notify email', 'us@example.com', '']],
+  } })
+  const changes = setupTwice(e)
+  assert.deepEqual(changes, [
+    'Added the column headers to Guests',
+    'Added Michael O\'Brien to Guests',
+    'Added Melody O\'Brien to Guests',
+    'Created the Responses tab',
+    'Added the "RSVP deadline" setting',
+  ])
+  assert.deepEqual(e.book.Guests.rows[0], ['Party', 'First Name', 'Last Name'])
+  assert.deepEqual(e.book.Settings.rows[1], ['Notify email', 'us@example.com', ''], 'existing setting kept')
+  assert.equal(e.book.Settings.rows[2][0], 'RSVP deadline')
+})
+
+test('setup adds a missing required column without disturbing the others', () => {
+  const e = makeEnv({ sheets: { Guests: [['Party', 'First Name', 'invite code '], ['Okello', 'John', 'X']] } })
+  const changes = setupTwice(e)
+  assert.deepEqual(changes.slice(0, 2), ['Removed the Invite Code column from Guests', 'Added the "Last Name" column to Guests'])
+  assert.deepEqual(e.book.Guests.rows[0], ['Party', 'First Name', 'Last Name'])
+  assert.deepEqual(e.book.Guests.getDataRange().getValues()[1], ['Okello', 'John', ''])
 })

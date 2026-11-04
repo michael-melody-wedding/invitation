@@ -20,6 +20,10 @@ Until the web app URL is filled in (step 6), the RSVP page tells guests
    account, then **Advanced → Go to (project name)** (the warning appears
    because the script is yours and not reviewed by Google), then **Allow**.
    This creates three tabs: **Guests**, **Responses** and **Settings**.
+   `setup` is safe to run again at any time: it only adds what's missing
+   (tabs, columns, settings, the O'Brien rows) and removes the old Invite
+   Code column, without touching guests, replies or settings you've
+   filled in. The execution log lists what it changed.
 4. **Fill in the guest list** on the **Guests** tab, one row per person:
 
    | Party | First Name | Last Name |
@@ -37,7 +41,8 @@ Until the web app URL is filled in (step 6), the RSVP page tells guests
      last name.
    - Extra columns (notes, addresses, table numbers…) are fine; the script
      only reads these three.
-   - Delete the two example rows that `setup` added.
+   - `setup` adds Michael and Melody O'Brien as the first party, so you can
+     try the RSVP page yourselves.
 5. **Settings** tab (both optional):
    - **Notify email**: who gets an email for every RSVP. Gmail accounts can
      send about 100 of these a day.

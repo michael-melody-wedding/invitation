@@ -364,22 +364,112 @@ function json_(data) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-/* ── One-time setup: run this once from the Apps Script editor ────────── */
+/* ── Setup: run from the Apps Script editor; safe to run again ────────── */
 
+/* The couple, kept in the guest list so the RSVP page can be tried out */
+var COUPLE = { party: 'Michael & Melody', last: "O'Brien", first: ['Michael', 'Melody'] };
+
+/* Brings the spreadsheet up to date: works on a blank spreadsheet and on one
+   set up earlier, and running it again changes nothing. Guest rows and
+   replies already in the sheet are kept; each change is written to the
+   execution log. */
 function setup() {
+  var changes = [];
+  setupGuests_(changes);
+  if (!SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.responses)) {
+    sheet_(SHEETS.responses, RESPONSE_HEADERS);
+    changes.push('Created the Responses tab');
+  }
+  setupSettings_(changes);
+  console.log(changes.length ? 'Setup made these changes:\n- ' + changes.join('\n- ') : 'Setup: everything was already up to date');
+  return changes;
+}
+
+function setupGuests_(changes) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var guests = sheet_(SHEETS.guests, GUEST_HEADERS);
-  if (guests.getLastRow() < 2) {
-    guests.getRange(2, 1, 2, GUEST_HEADERS.length).setValues([
-      ['Michael & Melody', 'Michael', 'Example'],
-      ['Michael & Melody', 'Melody', 'Example'],
-    ]);
+  var sheet = ss.getSheetByName(SHEETS.guests);
+  if (!sheet) {
+    sheet = sheet_(SHEETS.guests, GUEST_HEADERS);
+    changes.push('Created the Guests tab');
   }
-  sheet_(SHEETS.responses, RESPONSE_HEADERS);
-  if (!ss.getSheetByName(SHEETS.settings)) {
-    var settings = ss.insertSheet(SHEETS.settings);
-    settings.getRange(1, 1, SETTING_ROWS.length, 3).setValues(SETTING_ROWS);
-    settings.getRange(1, 1, 1, 3).setFontWeight('bold');
-    settings.setFrozenRows(1);
+
+  var header = headerRow_(sheet);
+  if (!header.some(function (h) { return h; })) {
+    writeHeader_(sheet, GUEST_HEADERS);
+    changes.push('Added the column headers to Guests');
+    header = headerRow_(sheet);
   }
+
+  /* Invite codes are no longer used: drop that column (right to left, so
+     deleting one doesn't shift the next) */
+  for (var i = header.length - 1; i >= 0; i--) {
+    if (header[i].toLowerCase() === 'invite code') {
+      sheet.deleteColumn(i + 1);
+      changes.push('Removed the Invite Code column from Guests');
+    }
+  }
+
+  header = headerRow_(sheet);
+  GUEST_HEADERS.forEach(function (name) {
+    if (header.indexOf(name) < 0) {
+      sheet.getRange(1, header.length + 1, 1, 1).setValues([[name]]).setFontWeight('bold');
+      header.push(name);
+      changes.push('Added the "' + name + '" column to Guests');
+    }
+  });
+
+  var col = headerIndex_(header, GUEST_HEADERS);
+  var values = sheet.getLastRow() > 1
+    ? sheet.getRange(2, 1, sheet.getLastRow() - 1, header.length).getValues()
+    : [];
+  COUPLE.first.forEach(function (first) {
+    for (var r = 0; r < values.length; r++) {
+      var row = values[r];
+      if (String(row[col['Party']]).trim() === COUPLE.party && norm_(row[col['First Name']]) === norm_(first)) {
+        if (String(row[col['Last Name']]).trim() !== COUPLE.last) {
+          sheet.getRange(r + 2, col['Last Name'] + 1, 1, 1).setValues([[COUPLE.last]]);
+          changes.push('Set ' + first + '’s last name to ' + COUPLE.last);
+        }
+        return;
+      }
+    }
+    var newRow = header.map(function () { return ''; });
+    newRow[col['Party']] = COUPLE.party;
+    newRow[col['First Name']] = first;
+    newRow[col['Last Name']] = COUPLE.last;
+    sheet.getRange(sheet.getLastRow() + 1, 1, 1, header.length).setValues([newRow]);
+    values.push(newRow);
+    changes.push('Added ' + first + ' ' + COUPLE.last + ' to Guests');
+  });
+}
+
+function setupSettings_(changes) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(SHEETS.settings);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEETS.settings);
+    changes.push('Created the Settings tab');
+  }
+  if (!headerRow_(sheet).some(function (h) { return h; })) writeHeader_(sheet, SETTING_ROWS[0]);
+
+  var have = sheet.getLastRow() > 1
+    ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().map(function (r) { return String(r[0]).trim().toLowerCase(); })
+    : [];
+  SETTING_ROWS.slice(1).forEach(function (row) {
+    if (have.indexOf(row[0].toLowerCase()) < 0) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
+      changes.push('Added the "' + row[0] + '" setting');
+    }
+  });
+}
+
+function headerRow_(sheet) {
+  var n = sheet.getLastColumn();
+  if (!n) return [];
+  return sheet.getRange(1, 1, 1, n).getValues()[0].map(function (h) { return String(h).trim(); });
+}
+
+function writeHeader_(sheet, headers) {
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
+  sheet.setFrozenRows(1);
 }

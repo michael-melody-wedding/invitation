@@ -5,18 +5,26 @@ const fs = require('fs')
 const path = require('path')
 const vm = require('vm')
 
+const pad = (row, n) => Array.from({ length: n }, (_, j) => (row[j] === undefined ? '' : row[j]))
+
 function makeSheet(name, rows = []) {
   const sheet = {
     name,
     rows: rows.map(r => r.slice()),
     written: [],   // exactly what the script passed to setValues, before Sheets' handling
+    // Like Sheets, ranges read back as rectangles, with '' for empty cells
     getDataRange() {
-      return { getValues: () => sheet.rows.length ? sheet.rows.map(r => r.slice()) : [[]] }
+      return { getValues: () => sheet.rows.length ? sheet.rows.map(r => pad(r, sheet.getLastColumn())) : [['']] }
     },
     getLastRow() { return sheet.rows.length },
+    getLastColumn() { return Math.max(0, ...sheet.rows.map(r => r.length)) },
     setFrozenRows() {},
-    getRange(row, col, numRows, numCols) {
+    deleteColumn(c) { sheet.rows.forEach(r => r.splice(c - 1, 1)) },
+    getRange(row, col, numRows = 1, numCols = 1) {
       return {
+        getValues() {
+          return Array.from({ length: numRows }, (_, i) => pad((sheet.rows[row - 1 + i] || []).slice(col - 1), numCols))
+        },
         setValues(values) {
           if (values.length !== numRows || values.some(v => v.length !== numCols)) throw new Error('setValues size mismatch')
           sheet.written.push(...values.map(v => v.slice()))
@@ -40,8 +48,9 @@ function makeEnv({ sheets = {}, now } = {}) {
   for (const [name, rows] of Object.entries(sheets)) book[name] = makeSheet(name, rows)
   const cache = new Map()
   const mail = []
+  const logs = []
   const env = {
-    book, cache, mail,
+    book, cache, mail, logs,
     SpreadsheetApp: {
       getActiveSpreadsheet: () => ({
         getSheetByName: name => book[name] || null,
@@ -67,7 +76,7 @@ function makeEnv({ sheets = {}, now } = {}) {
       MimeType: { JSON: 'application/json' },
       createTextOutput: text => ({ text, mime: null, setMimeType(m) { this.mime = m; return this }, getContent() { return this.text } }),
     },
-    console: { error: () => {}, log: console.log },
+    console: { error: () => {}, log: m => logs.push(String(m)) },
   }
   if (now) {
     const RealDate = Date
