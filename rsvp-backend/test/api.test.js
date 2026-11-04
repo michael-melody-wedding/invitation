@@ -163,8 +163,30 @@ test('a returning guest gets their latest answers back', () => {
   assert.ok(prev.submittedAt)
   assert.deepEqual(prev.guests[john.id], { attending: 'yes', dietary: 'Vegan', songs: 'Song A', advice: 'A' })
   assert.deepEqual(prev.guests[guest.id], { attending: 'no', dietary: '', songs: '', advice: '' })
-  assert.deepEqual(prev.party, { days: [], lodging: '', room: '' }, 'party details come from the latest submission')
+  assert.deepEqual(prev.party, { days: ['Saturday'], lodging: 'Lodge', room: '7' }, 'John is still coming, so his party details stay')
   assert.equal(search(e, 'Sam', 'OBrien').previous, null, 'other parties see nothing')
+})
+
+test('guests of one party can each answer only for themselves', () => {
+  const e = env()
+  const [john, guest] = search(e, 'John', 'Okello').party.guests
+  // Guest answers first, only for themself, with the party details
+  submitFor(e, 'Guest', 'Okello', [{ id: guest.id, attending: 'yes', dietary: 'Vegetarian' }], { days: ['Friday', 'Saturday'], lodging: 'Lodge', room: 'Room 4' })
+  assert.deepEqual(responses(e).map(r => r[col(e, 'Guest')]), ['Guest Okello'], 'John is not written')
+  // Later John answers only for himself and declines
+  submitFor(e, 'John', 'Okello', [{ id: john.id, attending: 'no' }])
+  const prev = search(e, 'John', 'Okello').previous
+  assert.equal(prev.guests[john.id].attending, 'no')
+  assert.deepEqual(prev.guests[guest.id], { attending: 'yes', dietary: 'Vegetarian', songs: '', advice: '' })
+  assert.deepEqual(prev.party, { days: ['Friday', 'Saturday'], lodging: 'Lodge', room: 'Room 4' }, 'a decline for one guest keeps the other guest’s party details')
+})
+
+test('when nobody in the party is coming any more, no party details come back', () => {
+  const e = env()
+  const [john] = search(e, 'John', 'Okello').party.guests
+  submitFor(e, 'John', 'Okello', [{ id: john.id, attending: 'yes' }], { days: ['Sunday'], lodging: 'Cabin', room: '12' })
+  submitFor(e, 'John', 'Okello', [{ id: john.id, attending: 'no' }])
+  assert.deepEqual(search(e, 'John', 'Okello').previous.party, { days: [], lodging: '', room: '' })
 })
 
 test('the RSVP deadline closes the form after that day', () => {

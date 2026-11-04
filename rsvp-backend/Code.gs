@@ -213,6 +213,7 @@ function previousAnswers_(party, guests) {
   guests.forEach(function (g) { byName[g.name] = g.id; });
 
   var latest = {};
+  var latestAt = {};
   var partyRow = null;
   for (var r = 1; r < values.length; r++) {
     var row = values[r];
@@ -220,9 +221,22 @@ function previousAnswers_(party, guests) {
     var id = byName[String(row[col['Guest']])];
     if (!id) continue;
     latest[id] = row;   // rows are appended in order, so later rows win
+    latestAt[id] = r;
     partyRow = row;
   }
   if (!partyRow) return null;
+
+  /* Days, lodging and room are only saved with a "yes", so take them from
+     the most recent current answer of someone who is coming. A later
+     decline for just one guest (saved with blank details) mustn't wipe
+     them out. */
+  var detailsRow = null, detailsAt = -1;
+  Object.keys(latest).forEach(function (id) {
+    if (String(latest[id][col['Attending']]) === 'Yes' && latestAt[id] > detailsAt) {
+      detailsRow = latest[id];
+      detailsAt = latestAt[id];
+    }
+  });
 
   var out = { guests: {}, party: {}, submittedAt: dateString_(partyRow[col['Submitted At']]) };
   Object.keys(latest).forEach(function (id) {
@@ -234,13 +248,15 @@ function previousAnswers_(party, guests) {
       advice: plain_(row[col['Marriage Advice']]),
     };
   });
-  out.party = {
-    days: String(partyRow[col['Days Staying']] || '').split(',')
-      .map(function (s) { return s.trim(); })
-      .filter(function (s) { return DAYS.indexOf(s) >= 0; }),
-    lodging: LODGING.indexOf(String(partyRow[col['Lodging']])) >= 0 ? String(partyRow[col['Lodging']]) : '',
-    room: plain_(partyRow[col['Room or Cabin Number']]),
-  };
+  out.party = detailsRow
+    ? {
+        days: String(detailsRow[col['Days Staying']] || '').split(',')
+          .map(function (s) { return s.trim(); })
+          .filter(function (s) { return DAYS.indexOf(s) >= 0; }),
+        lodging: LODGING.indexOf(String(detailsRow[col['Lodging']])) >= 0 ? String(detailsRow[col['Lodging']]) : '',
+        room: plain_(detailsRow[col['Room or Cabin Number']]),
+      }
+    : { days: [], lodging: '', room: '' };
   return out;
 }
 
